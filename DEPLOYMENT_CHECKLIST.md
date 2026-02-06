@@ -14,8 +14,8 @@ Use this checklist to track your progress deploying the system.
 - [ ] Configure credentials
   - [ ] Copy .env.template to .env
   - [ ] Set MQTT_BROKER (10.0.0.62)
-  - [ ] Set MQTT_USERNAME (hydro_user)
-  - [ ] Set MQTT_PASSWORD (create secure password)
+  - [ ] Set MQTT_USERNAME (pydro)
+  - [ ] Set MQTT_PASSWORD (kiki053083)
   - [ ] Set TWILIO_ACCOUNT_SID (from twilio.com)
   - [ ] Set TWILIO_AUTH_TOKEN (from twilio.com)
   - [ ] Set TWILIO_FROM_PHONE (your Twilio number)
@@ -43,28 +43,46 @@ Use this checklist to track your progress deploying the system.
 
 - [ ] Software Installation
   - [ ] Update system: `sudo apt update && sudo apt upgrade -y`
-  - [ ] Install Mycodo: `curl -L https://kizniche.github.io/Mycodo/install | bash`
-  - [ ] Configure Mosquitto MQTT broker
-    - [ ] Create user: `sudo mosquitto_passwd -c /etc/mosquitto/passwd hydro_user`
-    - [ ] Configure auth in /etc/mosquitto/mosquitto.conf
-    - [ ] Restart Mosquitto: `sudo systemctl restart mosquitto`
-  - [ ] Transfer project files: `scp -r "Python project" pi@10.0.0.62:~/`
-  - [ ] Install Python dependencies: `pip3 install -r requirements.txt`
+  - [ ] **CRITICAL:** Install build dependencies (must do BEFORE Mycodo):
+    ```bash
+    sudo apt install -y python3-setuptools python3-wheel python3-dev build-essential gawk nginx git curl libopenblas-dev
+    ```
+  - [ ] Clean previous failed installation (if any): `sudo rm -rf /opt/Mycodo`
+  - [ ] **CRITICAL:** Install Mycodo with wheels-only flag (forces use of pre-built wheels, not source):
+    ```bash
+    PIP_ONLY_BINARY=:all: curl -L https://kizniche.github.io/Mycodo/install | bash
+    ```
+  - [ ] **IMPORTANT:** After Mycodo installation, fix Python 3.13 compatibility:
+    ```bash
+    sudo bash -c "cd /opt/Mycodo && source env/bin/activate && pip install setuptools wheel && pip install 'SQLAlchemy>=2.0.36'"
+    ```
+  - [ ] Restart Mycodo services:
+    ```bash
+    sudo systemctl restart mycodo.service mycodoflask.service
+    ```
+  - [ ] Verify Mycodo is running: `curl -o /dev/null -w "%{http_code}" http://localhost` (should return 302)
+  - [x] Configure Mosquitto MQTT broker
+    - [x] Create user: `sudo mosquitto_passwd -c /etc/mosquitto/passwd pydro`
+    - [x] Configure auth in /etc/mosquitto/mosquitto.conf
+    - [x] Restart Mosquitto: `sudo systemctl restart mosquitto`
+  - [x] Transfer project files (from Mac): `scp -r /tmp/pydro-system/* pi@10.0.0.62:~/pydro-system/`
+  - [x] **OR if already on RPi5:** Copy files locally: `cp -r /tmp/pydro-system/* ~/pydro-system/`
+  - [x] Install Python dependencies: `cd ~/pydro-system && pip3 install -r requirements.txt`
 
-- [ ] Configuration
-  - [ ] Copy .env to RPi5
-  - [ ] Create directories: `mkdir -p ~/hydro_images ~/hydro_logs`
-  - [ ] Set permissions: `chmod 755 ~/hydro_images ~/hydro_logs`
+- [x] Configuration
+  - [x] Copy .env to RPi5 (configured with Twilio + Grok API credentials)
+  - [x] Create directories: `mkdir -p ~/hydro_images ~/hydro_logs`
+  - [x] Set permissions: `chmod 755 ~/hydro_images ~/hydro_logs`
 
-- [ ] Testing
-  - [ ] Run validation: `python3 utils/quick_start.py`
-  - [ ] Test MQTT: `python3 utils/test_mqtt.py`
-  - [ ] Check Mycodo dashboard: http://10.0.0.62:8080
+- [x] Testing
+  - [x] Run validation: `python3 utils/quick_start.py` (5/5 checks PASS ✓)
+  - [x] Test MQTT: `python3 utils/test_mqtt.py` (verified working with pydro/kiki053083)
+  - [x] Check Mycodo dashboard: Services running (daemon + flask) on port 8080
 
-- [ ] Service Installation
-  - [ ] Install systemd service: `sudo bash utils/setup_systemd.sh`
-  - [ ] Enable auto-start: `sudo systemctl enable hydro-ai-main`
-  - [ ] **DO NOT START YET** (wait for sensors to be online)
+- [x] Service Installation
+  - [x] Install systemd service: `sudo systemctl enable hydro-ai-main`
+  - [x] Enable auto-start: Service enabled and ready to start
+  - [x] System ready (waiting for sensors before starting)
 
 ---
 
@@ -200,7 +218,7 @@ Use this checklist to track your progress deploying the system.
   - [ ] Start RPi5 AI system: `sudo systemctl start hydro-ai-main`
 
 - [ ] System Verification
-  - [ ] Check MQTT topics: `mosquitto_sub -h 10.0.0.62 -u hydro_user -P PASSWORD -t '#' -v`
+  - [ ] Check MQTT topics: `mosquitto_sub -h 10.0.0.62 -u pydro -P kiki053083 -t '#' -v`
   - [ ] Verify sensor data flowing (every 60s)
   - [ ] Verify camera metadata publishing (every 4h during lights-on)
   - [ ] Check logs: `sudo journalctl -u hydro-ai-main -f`
