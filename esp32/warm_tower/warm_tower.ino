@@ -42,8 +42,13 @@ const char* topic_pump = "/warm/pump/command";
 const char* topic_status = "/warm/status";
 
 // Pin Definitions
-#define ONE_WIRE_BUS 4       // DS18B20 water temp sensor
-#define LED_PWM_PIN 25       // MOSFET control for LED lights
+#define I2C_SDA 41
+#define I2C_SCL 42
+#define ONE_WIRE_BUS 5       // DS18B20 water temp sensor
+#define LED_PWM_PIN 6        // MOSFET control for LED lights
+#define DHT_PIN 9            // DHT22 air temp/humidity (shared from cool tower)
+#define HC_SR04_TRIG 7       // Ultrasonic sensor trigger
+#define HC_SR04_ECHO 8       // Ultrasonic sensor echo
 #define LED_PWM_CHANNEL 0
 #define LED_PWM_FREQ 5000
 #define LED_PWM_RESOLUTION 8  // 8-bit (0-255)

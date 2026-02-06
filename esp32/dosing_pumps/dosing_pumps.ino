@@ -39,6 +39,10 @@ const char* topic_cool_pump_cmd = "/cool/pump/command";
 const char* topic_warm_pump_cmd = "/warm/pump/command";
 const char* topic_pump_status = "/pumps/status";
 
+// I2C Pin Definitions
+#define I2C_SDA 41
+#define I2C_SCL 42
+
 // Pump GPIO Pins
 const int PUMP_PINS[] = {
     12, 13, 14, 15,  // Cool tower (pumps 1-4)

@@ -21,6 +21,7 @@
 #include <DallasTemperature.h>
 #include <DHT.h>
 #include <ArduinoJson.h>
+#include <ArduinoOTA.h>
 
 // WiFi credentials
 const char* ssid = "12BravoP";
@@ -40,14 +41,19 @@ const char* topic_water_temp = "/cool/water_temp";
 const char* topic_air_temp = "/cool/air_temp";
 const char* topic_humidity = "/cool/air_humidity";
 const char* topic_led = "/cool/led";
+const char* topic_led_intensity = "/cool/led/intensity";
 const char* topic_pump = "/cool/pump/command";
 const char* topic_status = "/cool/status";
 
 // Pin Definitions
-#define ONE_WIRE_BUS 4       // DS18B20 water temp sensor
-#define DHT_PIN 15           // DHT22 air temp/humidity
+#define I2C_SDA 41
+#define I2C_SCL 42
+#define ONE_WIRE_BUS 5       // DS18B20 water temp sensor
+#define LED_PWM_PIN 6        // MOSFET control for LED lights
+#define DHT_PIN 9            // DHT22 air temp/humidity
+#define HC_SR04_TRIG 7       // Ultrasonic sensor trigger
+#define HC_SR04_ECHO 8       // Ultrasonic sensor echo
 #define DHT_TYPE DHT22
-#define LED_PWM_PIN 25       // MOSFET control for LED lights
 #define LED_PWM_CHANNEL 0
 #define LED_PWM_FREQ 5000
 #define LED_PWM_RESOLUTION 8  // 8-bit (0-255)
@@ -76,6 +82,7 @@ int ledIntensity = 75;  // Default 75%
 // Function prototypes
 void setupWiFi();
 void setupMQTT();
+void setupOTA();
 void mqttCallback(char* topic, byte* payload, unsigned int length);
 void reconnectMQTT();
 float readAtlasEC();
@@ -110,10 +117,16 @@ void setup() {
   // Setup MQTT
   setupMQTT();
   
+  // Setup OTA
+  setupOTA();
+  
   Serial.println("=== Setup Complete ===\n");
 }
 
 void loop() {
+  // Handle OTA updates
+  ArduinoOTA.handle();
+  
   // Maintain MQTT connection
   if (!mqtt.connected()) {
     if (millis() - lastMqttReconnect > mqttReconnectInterval) {
@@ -158,6 +171,37 @@ void setupMQTT() {
   mqtt.setServer(mqtt_server, mqtt_port);
   mqtt.setCallback(mqttCallback);
   reconnectMQTT();
+}
+
+void setupOTA() {
+  ArduinoOTA.setHostname("cool_tower_esp32");
+  ArduinoOTA.setPassword("pydro_ota_password");  // Change this to a secure password
+  
+  ArduinoOTA.onStart([]() {
+    String type = (ArduinoOTA.getCommand() == U_FLASH) ? "sketch" : "filesystem";
+    Serial.println("OTA Start updating " + type);
+    mqtt.disconnect();  // Disconnect MQTT during update
+  });
+  
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nOTA End");
+  });
+  
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("OTA Progress: %u%%\r", (progress / (total / 100)));
+  });
+  
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("OTA Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+  
+  ArduinoOTA.begin();
+  Serial.println("OTA Ready");
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
